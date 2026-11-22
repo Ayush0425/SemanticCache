@@ -4,6 +4,7 @@ import { z } from "zod";
 import { answerPrompt } from "./cache.js";
 import { db } from "./config/db.js";
 import { ModelError } from "./ollama.js";
+import { readStats, recordRequest } from "./stats.js";
 
 const app = express();
 
@@ -34,6 +35,24 @@ app.get("/api/v1/ready", async (req, res) => {
     }
 });
 
+app.get("/api/v1/stats", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    if (!db) {
+        return res.status(503).json({ success: false, message: "DATABASE_URL is required." });
+    }
+    try {
+        return res.json({ success: true, ...await readStats() });
+    } catch (error) {
+        console.error("Cache stats unavailable:", error.code ?? error.name);
+        return res.status(503).json({
+            success: false,
+            message: error.code === "42P01"
+                ? "Run npm run db:migrate to enable cache stats."
+                : "Cache statistics are temporarily unavailable.",
+        });
+    }
+});
+
 const querySchema = z.object({
     prompt: z.string().trim().min(1).max(2000).refine((prompt) => !prompt.includes("\0")),
     demoRunId: z.uuid().optional(),
@@ -51,8 +70,11 @@ app.post("/api/v1/query", async (req, res) => {
         return res.status(503).json({ success: false, message: "DATABASE_URL is required." });
     }
     try {
+        const startedAt = performance.now();
         const { prompt, demoRunId } = query.data;
-        return res.json({ success: true, ...await answerPrompt(prompt, demoRunId) });
+        const answer = await answerPrompt(prompt, demoRunId);
+        await recordRequest(answer.semanticRejected ? "rejected" : answer.cache, Math.round(performance.now() - startedAt));
+        return res.json({ success: true, ...answer });
     } catch (error) {
         console.error("Cache query failed:", error.cause?.message ?? error.code ?? error.name);
         if (error instanceof ModelError) {

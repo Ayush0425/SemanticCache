@@ -8,6 +8,7 @@
     "setup:local": "node scripts/setup-local.js",
     "db:migrate": "node database/migrate.js",
     "evaluate": "node evaluation/run.js",
+    "evaluate:holdout": "node evaluation/run.js --holdout",
     "dev": "node --watch src/server.js"
   },
   "license": "ISC",

@@ -50,5 +50,5 @@ export async function answerPrompt(prompt, demoRunId) {
          WHERE cache_entries.expires_at <= now()`,
         [modelScope, hash, prompt, answer, embedding, ttl],
     );
-    return { answer, cache: "miss", similarity: null };
+    return { answer, cache: "miss", similarity: null, semanticRejected: Boolean(candidate) };
 }

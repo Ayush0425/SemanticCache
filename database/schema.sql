@@ -12,3 +12,12 @@ CREATE TABLE IF NOT EXISTS cache_entries (
 
 CREATE INDEX IF NOT EXISTS cache_entries_expires_at_idx
     ON cache_entries (expires_at);
+
+CREATE TABLE IF NOT EXISTS cache_request_metrics (
+    occurred_at timestamptz NOT NULL DEFAULT now(),
+    outcome text NOT NULL CHECK (outcome IN ('exact', 'semantic', 'miss', 'rejected')),
+    latency_ms integer NOT NULL CHECK (latency_ms >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS cache_request_metrics_occurred_at_idx
+    ON cache_request_metrics (occurred_at);

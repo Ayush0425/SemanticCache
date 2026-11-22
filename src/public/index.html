@@ -7,6 +7,7 @@
     <title>Playground · SemanticCache</title>
     <link rel="stylesheet" href="/playground.css">
     <script type="module" src="/playground.js"></script>
+    <script type="module" src="/stats.js"></script>
 </head>
 <body>
     <header class="site-header">
@@ -20,64 +21,114 @@
     </header>
 
     <main class="shell">
-        <section class="intro" aria-labelledby="page-title">
-            <div>
-                <h1 id="page-title">Cache playground</h1>
-                <p>Send a prompt and see when the cache can reuse an answer.</p>
-            </div>
-            <button class="button button-secondary" type="button" id="demo"><span aria-hidden="true">▷</span> Run demo</button>
-        </section>
+        <nav class="views" aria-label="SemanticCache views">
+            <a href="#playground" id="playground-link" aria-current="page">Playground</a>
+            <a href="#stats" id="stats-link">Stats</a>
+        </nav>
 
-        <div class="workbench">
-            <section class="panel composer">
-                <div class="panel-heading">
-                    <h2><label for="prompt">Prompt</label></h2>
-                    <p>Try a question, then ask it another way.</p>
+        <div id="playground">
+            <section class="intro" aria-labelledby="page-title">
+                <div>
+                    <h1 id="page-title">Cache playground</h1>
+                    <p>Send a prompt and see when the cache can reuse an answer.</p>
                 </div>
-                <form id="query-form">
-                    <textarea id="prompt" rows="5" maxlength="2000" placeholder="What causes the sky to look blue during the day?" required></textarea>
-                    <div class="form-actions">
-                        <span class="counter" id="counter">0 / 2,000</span>
-                        <button class="button button-primary" id="submit-query" type="submit">Send prompt</button>
-                    </div>
-                </form>
-                <p class="feedback" id="feedback" role="status" hidden></p>
+                <button class="button button-secondary" type="button" id="demo"><span aria-hidden="true">▷</span> Run demo</button>
             </section>
 
-            <section class="panel response" aria-labelledby="response-title">
-                <div class="panel-heading">
-                    <div class="response-heading">
-                        <h2 id="response-title">Response</h2>
-                        <span class="badge" id="result-badge" hidden></span>
+            <div class="workbench">
+                <section class="panel composer">
+                    <div class="panel-heading">
+                        <h2><label for="prompt">Prompt</label></h2>
+                        <p>Try a question, then ask it another way.</p>
                     </div>
-                    <p id="result-summary" role="status">Awaiting a request.</p>
+                    <form id="query-form">
+                        <textarea id="prompt" rows="5" maxlength="2000" placeholder="What causes the sky to look blue during the day?" required></textarea>
+                        <div class="form-actions">
+                            <span class="counter" id="counter">0 / 2,000</span>
+                            <button class="button button-primary" id="submit-query" type="submit">Send prompt</button>
+                        </div>
+                    </form>
+                    <p class="feedback" id="feedback" role="status" hidden></p>
+                </section>
+
+                <section class="panel response" aria-labelledby="response-title">
+                    <div class="panel-heading">
+                        <div class="response-heading">
+                            <h2 id="response-title">Response</h2>
+                            <span class="badge" id="result-badge" hidden></span>
+                        </div>
+                        <p id="result-summary" role="status">Awaiting a request.</p>
+                    </div>
+                    <div class="empty-response" id="empty-response">
+                        <span class="empty-icon" aria-hidden="true">›_</span>
+                        <p>Your answer will appear here.</p>
+                    </div>
+                    <div id="result" hidden>
+                        <dl class="metrics">
+                            <div><dt>Round-trip time</dt><dd id="latency"></dd></div>
+                            <div id="similarity-metric" hidden><dt>Similarity</dt><dd id="similarity"></dd></div>
+                        </dl>
+                        <p class="match" id="match" hidden></p>
+                        <div class="answer" id="answer"></div>
+                    </div>
+                </section>
+            </div>
+
+            <section class="panel history" aria-labelledby="history-title">
+                <div class="panel-heading history-heading">
+                    <div>
+                        <h2 id="history-title">Request history</h2>
+                        <p>Compare round-trip times from this session.</p>
+                    </div>
+                    <button class="button button-text" type="button" id="clear" disabled>Clear history</button>
                 </div>
-                <div class="empty-response" id="empty-response">
-                    <span class="empty-icon" aria-hidden="true">›_</span>
-                    <p>Your answer will appear here.</p>
-                </div>
-                <div id="result" hidden>
-                    <dl class="metrics">
-                        <div><dt>Round-trip time</dt><dd id="latency"></dd></div>
-                        <div id="similarity-metric" hidden><dt>Similarity</dt><dd id="similarity"></dd></div>
-                    </dl>
-                    <p class="match" id="match" hidden></p>
-                    <div class="answer" id="answer"></div>
-                </div>
+                <div id="history-empty" class="history-empty">Your requests will appear here.</div>
+                <ol class="request-list" id="request-list" aria-label="Recent requests" hidden></ol>
             </section>
         </div>
 
-        <section class="panel history" aria-labelledby="history-title">
-            <div class="panel-heading history-heading">
+        <div id="stats" hidden>
+            <section class="intro" aria-labelledby="stats-title">
                 <div>
-                    <h2 id="history-title">Request history</h2>
-                    <p>Compare round-trip times from this session.</p>
+                    <h1 id="stats-title">Cache stats</h1>
+                    <p>Successful requests in the last 24 hours.</p>
                 </div>
-                <button class="button button-text" type="button" id="clear" disabled>Clear history</button>
+                <button class="button button-secondary" type="button" id="refresh-stats">Refresh stats</button>
+            </section>
+
+            <p class="feedback stats-feedback" id="stats-status" role="status" hidden></p>
+            <div id="stats-data" hidden>
+                <dl class="stat-cards">
+                    <div class="panel">
+                        <dt>Total requests</dt>
+                        <dd id="total-requests"></dd>
+                    </div>
+                    <div class="panel">
+                        <dt>Cache hit rate</dt>
+                        <dd id="hit-rate"></dd>
+                    </div>
+                    <div class="panel">
+                        <dt>Generation calls skipped</dt>
+                        <dd id="generation-skipped"></dd>
+                    </div>
+                </dl>
+
+                <section class="panel" aria-labelledby="breakdown-title">
+                    <div class="panel-heading">
+                        <h2 id="breakdown-title">Request breakdown</h2>
+                        <p>Median and p95 measure server time for each outcome.</p>
+                    </div>
+                    <div class="stats-table-wrap">
+                        <table class="stats-table" aria-labelledby="breakdown-title">
+                            <thead>
+                                <tr><th scope="col">Outcome</th><th scope="col">Requests</th><th scope="col">Median</th><th scope="col">P95</th></tr>
+                            </thead>
+                            <tbody id="stats-breakdown"></tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
-            <div id="history-empty" class="history-empty">Your requests will appear here.</div>
-            <ol class="request-list" id="request-list" aria-label="Recent requests" hidden></ol>
-        </section>
+        </div>
     </main>
 </body>
 </html>

@@ -9,11 +9,12 @@ const historyList = byId("request-list");
 const requests = [];
 const countFormat = new Intl.NumberFormat("en");
 const scoreFormat = new Intl.NumberFormat("en", { style: "percent", maximumFractionDigits: 2 });
-const labels = { miss: "Miss", exact: "Exact hit", semantic: "Semantic hit" };
+const labels = { miss: "Miss", exact: "Exact hit", semantic: "Semantic hit", rejected: "Match rejected" };
 const summaries = {
     miss: "Ollama generated a new answer.",
     exact: "The cache found the same prompt and skipped both model calls.",
     semantic: "The cache matched a similar prompt and skipped generation.",
+    rejected: "The unit check rejected a similar prompt. Ollama generated a fresh answer.",
 };
 const demoSteps = [
     ["Original question", "What causes the sky to look blue during the day?"],
@@ -124,7 +125,13 @@ async function requestAnswer(prompt, demoRunId, step) {
     if (!response.ok || !result?.success || !Object.hasOwn(labels, result.cache)) {
         throw new Error(result?.message ?? `Unexpected API response (HTTP ${response.status}).`);
     }
-    const request = { ...result, prompt, step, duration: Math.round(performance.now() - started) };
+    const request = {
+        ...result,
+        cache: result.semanticRejected ? "rejected" : result.cache,
+        prompt,
+        step,
+        duration: Math.round(performance.now() - started),
+    };
     showResult(request);
     addRequest(request);
     return request;

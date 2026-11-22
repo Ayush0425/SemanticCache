@@ -26,6 +26,12 @@ Open [the playground](http://127.0.0.1:5000/) after running `npm start`. Send a 
 
 **Run demo** sends the same question twice, then sends a paraphrase. Each run uses its own cache scope with a TTL of up to 15 minutes, so previous requests won't warm up the next run. The paraphrase still uses the configured similarity threshold. Clear history removes the displayed requests from the current page.
 
+## Cache stats
+
+Run `npm run db:migrate` on an existing installation, then open the **Stats** tab. It shows the last 24 hours of successful requests, the cache hit rate, skipped generation calls, and median and p95 server latency by outcome. A match rejected by the unit check is counted separately from a regular miss. Each metrics row contains only the time, outcome, and latency.
+
+`GET /api/v1/stats` returns the same aggregates as JSON. To remove older metrics rows, run `DELETE FROM cache_request_metrics WHERE occurred_at < now() - interval '7 days';`.
+
 ## Try the API
 
 In another PowerShell terminal:
@@ -55,3 +61,5 @@ Before reusing the nearest semantic match, the API checks for conflicting explic
 With PostgreSQL and Ollama running and the database migration applied, run `npm run evaluate`. The evaluation compares 16 labeled prompt pairs using the configured embedding model and pgvector cosine similarity. It reports each prediction and compares precision and recall across several thresholds, both with similarity alone and with the unit check enabled.
 
 A **false hit** would reuse an answer for a different question. A **false miss** would generate an unnecessary answer for a paraphrase. The evaluator scores each pair independently, reads the configured threshold, and leaves the cache and settings untouched. It does not run the generation model. Add labeled examples in `evaluation/pairs.js` to cover more of your intended usage before tuning the threshold.
+
+After choosing a threshold on the development pairs, run `npm run evaluate:holdout` to test it on 10 separate examples that include changed dates, negation, and different output requirements. The holdout command reports results at the current threshold only.
