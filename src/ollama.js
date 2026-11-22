@@ -19,13 +19,7 @@ async function requestModel(path, body) {
 
 export class ModelError extends Error {}
 
-export async function embed(prompt) {
-    const data = await requestModel("/api/embed", {
-        model: env.EMBEDDING_MODEL,
-        input: prompt,
-        truncate: false,
-    });
-    const vector = data?.embeddings?.[0];
+function toFloatVector(vector) {
     if (!Array.isArray(vector) || vector.length > 16_000 || !vector.every(Number.isFinite)) {
         throw new ModelError("Ollama returned an invalid embedding.");
     }
@@ -34,6 +28,27 @@ export async function embed(prompt) {
         throw new ModelError("Ollama returned an invalid embedding.");
     }
     return floatVector;
+}
+
+async function requestEmbeddings(input, count) {
+    const data = await requestModel("/api/embed", {
+        model: env.EMBEDDING_MODEL,
+        input,
+        truncate: false,
+    });
+    if (!Array.isArray(data?.embeddings) || data.embeddings.length !== count) {
+        throw new ModelError("Ollama returned the wrong number of embeddings.");
+    }
+    return data.embeddings.map(toFloatVector);
+}
+
+export async function embed(prompt) {
+    const [embedding] = await requestEmbeddings(prompt, 1);
+    return embedding;
+}
+
+export async function embedMany(prompts) {
+    return requestEmbeddings(prompts, prompts.length);
 }
 
 export async function generate(prompt) {

@@ -47,3 +47,9 @@ foreach ($question in $questions) {
 With an empty cache, the first request returns `cache: "miss"` and the repeat returns `cache: "exact"`. The paraphrase returns `cache: "semantic"` if its embedding meets `CACHE_SIMILARITY_THRESHOLD`. A semantic hit includes the matched prompt and score. Tune the threshold with both paraphrases and look-alike questions that need different answers.
 
 `GET /api/v1/health` checks the API process. `GET /api/v1/ready` checks database connectivity and schema setup. Cache entries are shared by all callers, so use this prototype as a single-user local service. Expired rows are skipped at lookup and overwritten when the same prompt is regenerated. To reclaim expired rows, run `DELETE FROM cache_entries WHERE expires_at <= now();`.
+
+## Evaluate semantic matches
+
+With PostgreSQL and Ollama running and the database migration applied, run `npm run evaluate`. The evaluation compares 16 labeled prompt pairs using the configured embedding model and pgvector cosine similarity. It reports each prediction and compares precision and recall across several thresholds.
+
+A **false hit** would reuse an answer for a different question. A **false miss** would generate an unnecessary answer for a paraphrase. The evaluator scores each pair independently, reads the configured threshold, and leaves the cache and settings untouched. It does not run the generation model. Add labeled examples in `evaluation/pairs.js` to cover more of your intended usage before tuning the threshold.

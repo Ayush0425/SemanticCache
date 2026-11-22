@@ -6,6 +6,7 @@
     "start": "node src/server.js",
     "setup:local": "node scripts/setup-local.js",
     "db:migrate": "node database/migrate.js",
+    "evaluate": "node evaluation/run.js",
     "dev": "node --watch src/server.js"
   },
   "license": "ISC",
