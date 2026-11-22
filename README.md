@@ -63,3 +63,15 @@ With PostgreSQL and Ollama running and the database migration applied, run `npm 
 A **false hit** would reuse an answer for a different question. A **false miss** would generate an unnecessary answer for a paraphrase. The evaluator scores each pair independently, reads the configured threshold, and leaves the cache and settings untouched. It does not run the generation model. Add labeled examples in `evaluation/pairs.js` to cover more of your intended usage before tuning the threshold.
 
 After choosing a threshold on the development pairs, run `npm run evaluate:holdout` to test it on 10 separate examples that include changed dates, negation, and different output requirements. The holdout command reports results at the current threshold only.
+
+## Deploy a public demo
+
+Use the repository's `render.yaml` as a [Render Blueprint](https://render.com/docs/infrastructure-as-code). It creates a free Node web service and a free PostgreSQL database. Render applies the schema on startup. The free database expires after 30 days, and free web services can take time to wake up. Provision a fresh database for the demo so local cache data stays on your machine.
+
+In Render, set `GEMINI_API_KEY` to a key from a [Gemini free-tier project](https://aistudio.google.com/api-keys) with billing disabled. Set `PUBLIC_PROXY_SECRET` to a random secret of at least 32 characters. Generate one in PowerShell with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. Paste it directly into the hosts' secret settings and keep it out of commits and screenshots.
+
+Import the same repository as a [Vercel Hobby project](https://vercel.com/docs/plans/hobby). In its production environment, set `RENDER_BACKEND_URL` to the web service's HTTPS `onrender.com` URL and set `PUBLIC_PROXY_SECRET` to the same value used on Render. The repository's `vercel.json` supplies the build and routing settings.
+
+Open the Vercel URL, run the playground demo, and check Stats. Confirm that the direct Render query endpoint refuses requests and that repeating a question in a separate private browser window starts with a fresh cache.
+
+The public API scopes cached answers to a signed browser session, limits requests to 12 per visitor and 60 across the demo per UTC day by default, and only accepts cache requests through the Vercel proxy. Hosted cache entries expire after at most 15 minutes and are pruned while Render is running. The hosted configuration starts at a conservative `0.98` threshold. Gemini scores differ from Ollama scores, so run the evaluator with the same model settings and a local pgvector database before tuning this value. A paraphrase still has to pass the threshold, including in the demo.

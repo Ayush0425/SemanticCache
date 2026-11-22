@@ -9,12 +9,13 @@ const historyList = byId("request-list");
 const requests = [];
 const countFormat = new Intl.NumberFormat("en");
 const scoreFormat = new Intl.NumberFormat("en", { style: "percent", maximumFractionDigits: 2 });
+const modelName = byId("hosted-notice").hidden ? "Ollama" : "Gemini";
 const labels = { miss: "Miss", exact: "Exact hit", semantic: "Semantic hit", rejected: "Match rejected" };
 const summaries = {
-    miss: "Ollama generated a new answer.",
+    miss: `${modelName} generated a new answer.`,
     exact: "The cache found the same prompt and skipped both model calls.",
     semantic: "The cache matched a similar prompt and skipped generation.",
-    rejected: "The unit check rejected a similar prompt. Ollama generated a fresh answer.",
+    rejected: `The unit check rejected a similar prompt. ${modelName} generated a fresh answer.`,
 };
 const demoSteps = [
     ["Original question", "What causes the sky to look blue during the day?"],
@@ -157,7 +158,7 @@ async function runQueries(steps, demoRunId) {
 async function updateConnection() {
     const connection = byId("connection");
     const ready = await fetch("/api/v1/ready", {
-        signal: AbortSignal.timeout(7_000),
+        signal: AbortSignal.timeout(90_000),
     }).then((res) => res.ok, () => false);
     connection.textContent = ready ? "Database ready" : "Database unavailable";
     connection.dataset.ready = String(ready);

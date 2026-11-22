@@ -1,4 +1,5 @@
 import { env } from "./config/env.js";
+import { ModelError, toFloatVector, validateAnswer } from "./model-utils.js";
 
 async function requestModel(path, body) {
     try {
@@ -15,19 +16,6 @@ async function requestModel(path, body) {
     } catch (cause) {
         throw new ModelError("Could not get a response from Ollama.", { cause });
     }
-}
-
-export class ModelError extends Error {}
-
-function toFloatVector(vector) {
-    if (!Array.isArray(vector) || vector.length > 16_000 || !vector.every(Number.isFinite)) {
-        throw new ModelError("Ollama returned an invalid embedding.");
-    }
-    const floatVector = vector.map(Math.fround);
-    if (!floatVector.every(Number.isFinite) || !floatVector.some((value) => value !== 0)) {
-        throw new ModelError("Ollama returned an invalid embedding.");
-    }
-    return floatVector;
 }
 
 async function requestEmbeddings(input, count) {
@@ -57,8 +45,5 @@ export async function generate(prompt) {
         prompt,
         stream: false,
     });
-    if (typeof data?.response !== "string" || !data.response.trim() || data.response.includes("\0")) {
-        throw new ModelError("Ollama returned an invalid answer.");
-    }
-    return data.response;
+    return validateAnswer(data?.response);
 }

@@ -1,6 +1,6 @@
 import { db } from "../src/config/db.js";
 import { env } from "../src/config/env.js";
-import { embedMany } from "../src/ollama.js";
+import { embedMany, embeddingModel } from "../src/models.js";
 import { hasUnitConflict } from "../src/unit-constraints.js";
 import { holdoutPairs } from "./holdout.js";
 import { pairs } from "./pairs.js";
@@ -38,7 +38,7 @@ async function evaluate() {
     const dataset = isHoldout ? holdoutPairs : pairs;
     const threshold = env.CACHE_SIMILARITY_THRESHOLD;
     const prompts = [...new Set(dataset.flatMap(({ cached, query }) => [cached, query]))];
-    console.log(`Scoring ${dataset.length} ${isHoldout ? "holdout" : "development"} pairs with ${env.EMBEDDING_MODEL} at threshold ${threshold}.`);
+    console.log(`Scoring ${dataset.length} ${isHoldout ? "holdout" : "development"} pairs with ${embeddingModel} at threshold ${threshold}.`);
     const embeddings = await embedMany(prompts);
     const vectors = new Map(prompts.map((prompt, index) => [prompt, JSON.stringify(embeddings[index])]));
 

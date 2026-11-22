@@ -1,18 +1,18 @@
 import { createHash } from "node:crypto";
 import { db } from "./config/db.js";
 import { env } from "./config/env.js";
-import { embed, generate } from "./ollama.js";
+import { embed, generate, modelScope } from "./models.js";
 import { hasUnitConflict } from "./unit-constraints.js";
 
-export async function answerPrompt(prompt, demoRunId) {
-    const models = [env.EMBEDDING_MODEL, env.GENERATION_MODEL];
-    const modelScope = JSON.stringify(demoRunId ? [...models, demoRunId] : models);
-    const ttl = demoRunId ? Math.min(env.CACHE_TTL_SECONDS, 15 * 60) : env.CACHE_TTL_SECONDS;
+export async function answerPrompt(prompt, demoRunId, visitorId) {
+    const scope = visitorId ? [...modelScope, "visitor", visitorId] : modelScope;
+    const cacheScope = JSON.stringify(demoRunId ? [...scope, demoRunId] : scope);
+    const ttl = demoRunId || visitorId ? Math.min(env.CACHE_TTL_SECONDS, 15 * 60) : env.CACHE_TTL_SECONDS;
     const hash = createHash("sha256").update(prompt).digest("hex");
     const exact = await db.query(
         `SELECT answer FROM cache_entries
          WHERE model_scope = $1 AND prompt_hash = $2 AND expires_at > now()`,
-        [modelScope, hash],
+        [cacheScope, hash],
     );
     if (exact.rowCount) {
         return { answer: exact.rows[0].answer, cache: "exact", similarity: 1 };
@@ -32,7 +32,7 @@ export async function answerPrompt(prompt, demoRunId) {
          WHERE 1 - distance >= $3::double precision
          ORDER BY distance, prompt
          LIMIT 1`,
-        [modelScope, embedding, env.CACHE_SIMILARITY_THRESHOLD],
+        [cacheScope, embedding, env.CACHE_SIMILARITY_THRESHOLD],
     );
     const candidate = nearest.rows[0];
     if (candidate && !hasUnitConflict(candidate.prompt, prompt)) {
@@ -48,7 +48,7 @@ export async function answerPrompt(prompt, demoRunId) {
          SET prompt = EXCLUDED.prompt, answer = EXCLUDED.answer,
              embedding = EXCLUDED.embedding, expires_at = EXCLUDED.expires_at
          WHERE cache_entries.expires_at <= now()`,
-        [modelScope, hash, prompt, answer, embedding, ttl],
+        [cacheScope, hash, prompt, answer, embedding, ttl],
     );
     return { answer, cache: "miss", similarity: null, semanticRejected: Boolean(candidate) };
 }

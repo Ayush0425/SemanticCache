@@ -48,7 +48,7 @@ async function loadStats() {
     status.hidden = false;
     delete status.dataset.type;
     try {
-        const response = await fetch("/api/v1/stats", { signal: AbortSignal.timeout(8_000) });
+        const response = await fetch("/api/v1/stats", { signal: AbortSignal.timeout(90_000) });
         const stats = await response.json().catch(() => null);
         if (!response.ok || !stats?.success) {
             throw new Error(stats?.message ?? `Could not load stats (HTTP ${response.status}).`);

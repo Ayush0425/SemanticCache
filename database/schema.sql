@@ -21,3 +21,10 @@ CREATE TABLE IF NOT EXISTS cache_request_metrics (
 
 CREATE INDEX IF NOT EXISTS cache_request_metrics_occurred_at_idx
     ON cache_request_metrics (occurred_at);
+
+CREATE TABLE IF NOT EXISTS public_request_limits (
+    day date NOT NULL,
+    scope text NOT NULL,
+    requests integer NOT NULL CHECK (requests > 0),
+    PRIMARY KEY (day, scope)
+);
