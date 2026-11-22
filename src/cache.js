@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { db } from "./config/db.js";
 import { env } from "./config/env.js";
 import { embed, generate } from "./ollama.js";
+import { hasUnitConflict } from "./unit-constraints.js";
 
 export async function answerPrompt(prompt, demoRunId) {
     const models = [env.EMBEDDING_MODEL, env.GENERATION_MODEL];
@@ -33,8 +34,9 @@ export async function answerPrompt(prompt, demoRunId) {
          LIMIT 1`,
         [modelScope, embedding, env.CACHE_SIMILARITY_THRESHOLD],
     );
-    if (nearest.rowCount) {
-        const { answer, prompt: matchedPrompt, similarity } = nearest.rows[0];
+    const candidate = nearest.rows[0];
+    if (candidate && !hasUnitConflict(candidate.prompt, prompt)) {
+        const { answer, prompt: matchedPrompt, similarity } = candidate;
         return { answer, cache: "semantic", similarity, matchedPrompt };
     }
 

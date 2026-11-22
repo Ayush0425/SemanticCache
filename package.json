@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test": "node --test",
     "start": "node src/server.js",
     "setup:local": "node scripts/setup-local.js",
     "db:migrate": "node database/migrate.js",

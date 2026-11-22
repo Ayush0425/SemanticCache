@@ -1,12 +1,13 @@
 import { db } from "../src/config/db.js";
 import { env } from "../src/config/env.js";
 import { embedMany } from "../src/ollama.js";
+import { hasUnitConflict } from "../src/unit-constraints.js";
 import { pairs } from "./pairs.js";
 
-function summarize(results, threshold) {
+function summarize(results, threshold, guardUnits) {
     const counts = { correctHits: 0, correctMisses: 0, falseHits: 0, falseMisses: 0 };
-    for (const { shouldHit, score } of results) {
-        if (score >= threshold) {
+    for (const { shouldHit, score, unitConflict } of results) {
+        if (score >= threshold && !(guardUnits && unitConflict)) {
             counts[shouldHit ? "correctHits" : "falseHits"]++;
         } else {
             counts[shouldHit ? "falseMisses" : "correctMisses"]++;
@@ -40,23 +41,29 @@ async function evaluate() {
             "SELECT 1 - ($1::vector <=> $2::vector) AS score",
             [vectors.get(pair.cached), vectors.get(pair.query)],
         );
-        results.push({ ...pair, score });
+        results.push({ ...pair, score, unitConflict: hasUnitConflict(pair.cached, pair.query) });
     }
-    console.table(results.map(({ name, shouldHit, score }) => {
-        const hit = score >= threshold;
+    console.table(results.map(({ name, shouldHit, score, unitConflict }) => {
+        const similarityHit = score >= threshold;
+        const hit = similarityHit && !unitConflict;
         return {
             case: name,
             expected: shouldHit ? "hit" : "miss",
+            similarityOnly: similarityHit ? "hit" : "miss",
             predicted: hit ? "hit" : "miss",
             similarity: score.toFixed(4),
+            guard: similarityHit && unitConflict ? "blocked" : "",
             result: hit === shouldHit ? "correct" : hit ? "false hit" : "false miss",
         };
     }));
 
     const thresholds = [...new Set([0.85, 0.90, 0.92, 0.94, 0.96, 0.98, 0.99, threshold])]
         .sort((first, second) => first - second);
+    console.log("Similarity only");
+    console.table(thresholds.map((cutoff) => summarize(results, cutoff, false)));
+    console.log("Similarity + unit check");
     console.table(thresholds.map((cutoff) => ({
-        ...summarize(results, cutoff),
+        ...summarize(results, cutoff, true),
         configured: cutoff === threshold ? "yes" : "",
     })));
 }
