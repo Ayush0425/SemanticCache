@@ -1,17 +1,11 @@
 import app from "./app.js";
 import { env } from "./config/env.js";
 
-const startServer = () => {
-    try {
-        app.listen(env.PORT, () => {
-            console.log(
-                `SemanticCache server running on port ${env.PORT}`
-            );
-        });
-    } catch (error) {
+app.listen(env.PORT, env.HOST, (error) => {
+    if (error) {
         console.error("Server startup failed:", error);
-        process.exit(1);
+        process.exitCode = 1;
+        return;
     }
-};
-
-startServer();
+    console.log(`SemanticCache server running at http://${env.HOST}:${env.PORT}`);
+});

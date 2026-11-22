@@ -1,0 +1,52 @@
+import { createHash } from "node:crypto";
+import { db } from "./config/db.js";
+import { env } from "./config/env.js";
+import { embed, generate } from "./ollama.js";
+
+export async function answerPrompt(prompt, demoRunId) {
+    const models = [env.EMBEDDING_MODEL, env.GENERATION_MODEL];
+    const modelScope = JSON.stringify(demoRunId ? [...models, demoRunId] : models);
+    const ttl = demoRunId ? Math.min(env.CACHE_TTL_SECONDS, 15 * 60) : env.CACHE_TTL_SECONDS;
+    const hash = createHash("sha256").update(prompt).digest("hex");
+    const exact = await db.query(
+        `SELECT answer FROM cache_entries
+         WHERE model_scope = $1 AND prompt_hash = $2 AND expires_at > now()`,
+        [modelScope, hash],
+    );
+    if (exact.rowCount) {
+        return { answer: exact.rows[0].answer, cache: "exact", similarity: 1 };
+    }
+
+    const embedding = JSON.stringify(await embed(prompt));
+    const nearest = await db.query(
+        `SELECT answer, prompt, 1 - distance AS similarity
+         FROM (
+             SELECT answer, prompt, CASE
+                 WHEN vector_dims(embedding) = vector_dims($2::vector)
+                 THEN embedding <=> $2::vector
+             END AS distance
+             FROM cache_entries
+             WHERE model_scope = $1 AND expires_at > now()
+         ) AS candidates
+         WHERE 1 - distance >= $3::double precision
+         ORDER BY distance, prompt
+         LIMIT 1`,
+        [modelScope, embedding, env.CACHE_SIMILARITY_THRESHOLD],
+    );
+    if (nearest.rowCount) {
+        const { answer, prompt: matchedPrompt, similarity } = nearest.rows[0];
+        return { answer, cache: "semantic", similarity, matchedPrompt };
+    }
+
+    const answer = await generate(prompt);
+    await db.query(
+        `INSERT INTO cache_entries (model_scope, prompt_hash, prompt, answer, embedding, expires_at)
+         VALUES ($1, $2, $3, $4, $5::vector, now() + $6::integer * interval '1 second')
+         ON CONFLICT (model_scope, prompt_hash) DO UPDATE
+         SET prompt = EXCLUDED.prompt, answer = EXCLUDED.answer,
+             embedding = EXCLUDED.embedding, expires_at = EXCLUDED.expires_at
+         WHERE cache_entries.expires_at <= now()`,
+        [modelScope, hash, prompt, answer, embedding, ttl],
+    );
+    return { answer, cache: "miss", similarity: null };
+}

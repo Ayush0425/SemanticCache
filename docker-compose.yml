@@ -1,0 +1,33 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-semantic_cache}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - semantic_cache_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  ollama:
+    image: ollama/ollama
+    profiles: [models]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - semantic_cache_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  semantic_cache_data:
+  semantic_cache_models:
