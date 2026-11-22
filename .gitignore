@@ -1,5 +1,21 @@
 node_modules/
 .env
+.env.*
+*.env
+*.env.*
+.envrc
+*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_ed25519
+.npmrc
+.vscode/
 .DS_Store
+Thumbs.db
 coverage/
+*.log
 

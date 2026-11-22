@@ -8,7 +8,7 @@ Install Node.js 22+ and Docker with Compose. From the repository root, run these
 
 ```powershell
 npm ci
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+npm run setup:local
 docker compose --profile models up -d --wait
 npm run db:migrate
 docker compose exec ollama ollama pull embeddinggemma
@@ -16,7 +16,9 @@ docker compose exec ollama ollama pull qwen2.5:1.5b
 npm start
 ```
 
-If you already have a project-root `.env`, merge in the example settings and keep your existing credentials. If you already run Ollama separately, start Compose without `--profile models` and pull the models through your Ollama installation. Compose publishes PostgreSQL on loopback port 5433. The default cache TTL is one day.
+`npm run setup:local` creates an ignored `.env` with a random local PostgreSQL password. If a local `.env` already exists, the command reuses it. The default API address is `127.0.0.1:5000`, PostgreSQL uses `127.0.0.1:5433`, and Ollama uses `127.0.0.1:11434`. If you run Ollama separately, start Compose without `--profile models` and pull the same models in your Ollama installation.
+
+Set `CACHE_SIMILARITY_THRESHOLD` or `CACHE_TTL_SECONDS` in your local `.env` to override the defaults of `0.92` and `86400`. Run `npm run dev` to restart the server automatically when its JavaScript changes.
 
 ## Browser playground
 
